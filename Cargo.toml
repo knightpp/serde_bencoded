@@ -1,0 +1,20 @@
+[package]
+name = "serde_bencoded"
+version = "0.1.0"
+authors = ["knightpp"]
+edition = "2018"
+
+[features]
+default = ["sort_dictionary"]
+bool = []
+none_is_err = []
+sort_dictionary = []
+
+[dependencies]
+serde = "1.0"
+itoa = "0.4"
+
+[dev-dependencies]
+serde_bytes = "0.11"
+serde = { version = "1.0", features = ["derive"] }
+hashers = "1.0"
