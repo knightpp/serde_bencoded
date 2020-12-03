@@ -1,8 +1,16 @@
 [package]
 name = "serde_bencoded"
 version = "0.1.0"
-authors = ["knightpp"]
+authors = ["Danil Kondratiev <knightpp@protonmail.com>"]
+license = "MIT OR Apache-2.0"
 edition = "2018"
+
+description = "Yet another encoding/decoding library for bencode"
+readme = "README.md"
+#documentation = 
+repository = "https://github.com/knightpp/serde_bencoded"
+keywords = ["bencode", "serde", "deserialization", "serialization", "torrent"]
+categories = ["encoding"]
 
 [features]
 default = ["sort_dictionary"]
