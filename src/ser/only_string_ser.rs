@@ -2,7 +2,7 @@ use std::io::Write;
 
 use serde::{ser, Serialize};
 
-use crate::error::Error;
+use crate::error::SerError as Error;
 pub(crate) struct OnlyStringSerializer<'s, W: Write> {
     pub(crate) ser: &'s mut super::Serializer<W>,
 }

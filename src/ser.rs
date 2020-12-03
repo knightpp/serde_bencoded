@@ -1,8 +1,6 @@
-use std::{io::Write, rc::Rc};
-
+use crate::error::{SerError as Error, SerResult as Result};
 use serde::{ser, Serialize};
-
-use crate::error::{Error, Result};
+use std::io::Write;
 
 mod only_string_ser;
 
@@ -12,26 +10,56 @@ pub struct Serializer<T: Write> {
 
 impl<W: Write> Serializer<W> {
     fn write_byte(&mut self, byte: u8) -> Result<()> {
-        if let Err(ioe) = self.writer.write(&[byte]) {
-            return Err(Error::Io(Rc::new(ioe)));
-        }
+        self.writer.write(&[byte])?;
         Ok(())
     }
 }
 
+/// Serializes rust's type to bencode string
+/// # Examples
+/** ```
+# use serde_bencoded::to_string;
+# fn main() -> Result<(), Box<dyn std::error::Error>>{
+assert_eq!(&to_string(&"abcd")?, "4:abcd");
+assert_eq!(&to_string(&123)?, "i123e");
+assert_eq!(&to_string(&vec![1, 2, 3])?, "li1ei2ei3ee");
+# Ok(())
+# }
+``` */
 /// # Errors
 /// Returns [`Error::FromUtf8Error`](Error::FromUtf8Error) if
-/// output buffer contains invalid UTF-8 sequence.
+/// output buffer contains invalid UTF-8 sequence. Use
+/// [`to_writer`](to_writer) or [`to_vec`](to_vec) if it is
+/// undesirable.
 pub fn to_string<T: Serialize>(value: &T) -> Result<String> {
     let mut buf = Vec::new();
     to_writer(value, &mut buf)?;
-    String::from_utf8(buf).map_err(|err| Error::FromUtf8Error(err))
+    Ok(String::from_utf8(buf)?)
 }
 
+/// Serializes rust's type to bencode using [`Write`](std::io::Write) trait
+/// # Examples
+/**
+```
+# use serde_bencoded::to_writer;
+# fn main() -> Result<(), Box<dyn std::error::Error>>{
+let mut buf = Vec::<u8>::new(); // `&mut Vec<u8>` implements `Write`
+to_writer(&"abcd", &mut buf)?;
+assert_eq!(&buf, b"4:abcd");
+# Ok(())
+# }
+```*/
 pub fn to_writer<T: Serialize, W: Write>(value: &T, writer: W) -> Result<()> {
     let mut serializer = Serializer { writer };
     value.serialize(&mut serializer)?;
     Ok(())
+}
+/// Convenient function to get encoded value as bytes
+pub fn to_vec<T: Serialize>(value: &T) -> Result<Vec<u8>> {
+    let mut buf = Vec::new();
+    let mut serializer = Serializer { writer: &mut buf };
+    value.serialize(&mut serializer)?;
+    Ok(buf)
 }
 
 impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
@@ -58,13 +86,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     type SerializeStructVariant = Self;
 
-    fn serialize_bool(self, _v: bool) -> Result<Self::Ok> {
-        #[cfg(feature = "bool")]
+    fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
         return self.serialize_u64(v as u64);
-        #[cfg(not(feature = "bool"))]
-        return Err(Error::Message(
-            "bool is not supported in bencoding, hint: use `bool` feature".to_string(),
-        ));
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
@@ -81,7 +104,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
         self.write_byte(b'i')?;
-        let _ = itoa::write(&mut self.writer, v).map_err(|ioe| Error::Io(std::rc::Rc::new(ioe)))?;
+        let _ = itoa::write(&mut self.writer, v)?;
         self.write_byte(b'e')?;
         Ok(())
     }
@@ -100,7 +123,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
         self.write_byte(b'i')?;
-        let _ = itoa::write(&mut self.writer, v).map_err(|ioe| Error::Io(std::rc::Rc::new(ioe)))?;
+        let _ = itoa::write(&mut self.writer, v)?;
         self.write_byte(b'e')?;
         Ok(())
     }
@@ -126,22 +149,15 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     /// Serializes bytes as `Byte String`
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         let length = v.len();
-        let map_err = |ioe| Error::Io(Rc::new(ioe));
-        itoa::write(&mut self.writer, length).map_err(map_err)?;
-
-        self.writer.write(&[b':']).map_err(map_err)?;
+        itoa::write(&mut self.writer, length)?;
+        self.writer.write(&[b':'])?;
         // TODO: should I use `write_all()`?
-        self.writer.write(v).map_err(map_err)?;
+        self.writer.write(v)?;
         Ok(())
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
-        #[cfg(not(feature = "none_is_err"))]
         return Ok(());
-        #[cfg(feature = "none_is_err")]
-        return Err(Error::Message(
-            "got `None`, but feature `none_is_err` enabled",
-        ));
     }
 
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
@@ -152,26 +168,21 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {
-        // Serialize unit as nothing
+        self.writer.write(b"0:")?; // we can serialize units as empty strings
         Ok(())
     }
 
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok> {
-        Ok(())
+    fn serialize_unit_struct(self, name: &'static str) -> Result<Self::Ok> {
+        self.serialize_str(name)
     }
 
     fn serialize_unit_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         _variant_index: u32,
         variant: &'static str,
     ) -> Result<Self::Ok> {
-        use ser::SerializeMap;
-        let mut ms = self.serialize_map(None)?;
-        ms.serialize_key(name)?;
-        ms.serialize_value(variant)?;
-        ms.end()?;
-        Ok(())
+        variant.serialize(&mut *self)
     }
 
     fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
@@ -185,13 +196,17 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok>
     where
         T: Serialize,
     {
-        value.serialize(&mut *self)
+        self.write_byte(b'd')?;
+        variant.serialize(&mut *self)?;
+        value.serialize(&mut *self)?;
+        self.write_byte(b'e')?;
+        Ok(())
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -220,14 +235,16 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     ) -> Result<Self::SerializeTupleVariant> {
         self.serialize_seq(Some(len))
     }
+    #[cfg(feature = "sort_dictionary")]
+    fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
+        self.write_byte(b'd')?;
+        Ok(StructMapSerializer::new(self, len.unwrap_or(0)))
+    }
 
+    #[cfg(not(feature = "sort_dictionary"))]
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         self.write_byte(b'd')?;
-        #[cfg(feature = "sort_dictionary")]
-        let ret = StructMapSerializer::new(self);
-        #[cfg(not(feature = "sort_dictionary"))]
-        let ret = self;
-        Ok(ret)
+        Ok(self)
     }
 
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
@@ -238,9 +255,11 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
+        self.write_byte(b'd')?;
+        variant.serialize(&mut *self)?;
         self.write_byte(b'd')?;
         Ok(self)
     }
@@ -368,7 +387,9 @@ impl<'s, W: Write> ser::SerializeStructVariant for &'s mut Serializer<W> {
     }
 
     fn end(self) -> Result<Self::Ok> {
-        self.write_byte(b'e')
+        self.write_byte(b'e')?;
+        self.write_byte(b'e')?;
+        Ok(())
     }
 }
 
@@ -382,10 +403,10 @@ mod dict_serializer {
     }
 
     impl<'s, T: Write> StructMapSerializer<'s, T> {
-        pub(super) fn new(parent: &'s mut Serializer<T>) -> Self {
+        pub(super) fn new(parent: &'s mut Serializer<T>, len: usize) -> Self {
             StructMapSerializer {
-                keys: Vec::new(),
-                values: Vec::new(),
+                keys: Vec::with_capacity(len),
+                values: Vec::with_capacity(len),
                 parent,
             }
         }
@@ -396,12 +417,11 @@ mod dict_serializer {
                 .iter_mut()
                 .zip(self.values.iter_mut())
                 .collect::<Vec<_>>();
-            let map_err = |ioe| Error::Io(Rc::new(ioe));
             // TODO: find out what is raw string sort? Is it right?
             map.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
             for (key, value) in map {
-                self.parent.writer.write(key).map_err(map_err)?;
-                self.parent.writer.write(value).map_err(map_err)?;
+                self.parent.writer.write(key)?;
+                self.parent.writer.write(value)?;
             }
             self.parent.write_byte(b'e')?;
             Ok(())
@@ -450,20 +470,23 @@ mod dict_serializer {
             T: Serialize,
         {
             // key
-            {
-                self.keys.push(Vec::new());
-                let mut temp_ser = Serializer {
-                    writer: self.keys.last_mut().unwrap(),
-                };
+            let key = {
+                let mut buf = Vec::new();
+                let mut temp_ser = Serializer { writer: &mut buf };
                 key.serialize(&mut temp_ser)?;
-            }
+                buf
+            };
             // value
-            {
-                self.values.push(Vec::new());
-                let mut temp_ser = Serializer {
-                    writer: self.values.last_mut().unwrap(),
-                };
+            let value = {
+                let mut buf = Vec::new();
+                let mut temp_ser = Serializer { writer: &mut buf };
                 value.serialize(&mut temp_ser)?;
+                buf
+            };
+            // needed for correct serialization of `Option`
+            if !value.is_empty() {
+                self.keys.push(key);
+                self.values.push(value);
             }
             Ok(())
         }
@@ -493,17 +516,8 @@ mod tests {
 
     #[test]
     fn bools() -> std::result::Result<(), Box<dyn std::error::Error>> {
-        #[cfg(not(feature = "bool"))]
-        {
-            assert!(to_string(&true).is_err());
-            assert!(to_string(&false).is_err());
-        }
-        #[cfg(feature = "bool")]
-        {
-            assert_eq!(&to_string(&true)?, "i1e");
-            assert_eq!(&to_string(&false)?, "i0e");
-        }
-
+        assert_eq!(&to_string(&true)?, "i1e");
+        assert_eq!(&to_string(&false)?, "i0e");
         Ok(())
     }
 
@@ -542,7 +556,7 @@ mod tests {
 
     #[test]
     fn unit() -> std::result::Result<(), Box<dyn std::error::Error>> {
-        assert_eq!(&to_string(&())?, "");
+        assert_eq!(&to_string(&())?, "0:");
         Ok(())
     }
 
@@ -550,7 +564,7 @@ mod tests {
     fn unit_struct() -> std::result::Result<(), Box<dyn std::error::Error>> {
         #[derive(Debug, Serialize)]
         struct EmptyInside;
-        assert_eq!(&to_string(&EmptyInside)?, "");
+        assert_eq!(&to_string(&EmptyInside)?, "11:EmptyInside");
         Ok(())
     }
 
@@ -570,8 +584,8 @@ mod tests {
             S(&'static str),
         }
 
-        assert_eq!(&to_string(&E::N(1))?, "i1e");
-        assert_eq!(&to_string(&E::S("buf"))?, "3:buf");
+        assert_eq!(&to_string(&E::N(1))?, "d1:Ni1ee");
+        assert_eq!(&to_string(&E::S("buf"))?, "d1:S3:bufe");
         Ok(())
     }
     #[test]
@@ -647,6 +661,7 @@ mod tests {
         use std::collections::HashMap;
         #[derive(Debug, Serialize)]
         struct S {
+            unit: (),
             list: [u8; 3],
             string: &'static str,
             map: HashMap<
@@ -662,14 +677,27 @@ mod tests {
         map.insert("a", 1);
         map.insert("b", 2);
         map.insert("c", 3);
+
         assert_eq!(
             &to_string(&S {
+                unit: (),
                 list: [9, 8, 7],
                 string: "hello",
                 map
             })?,
-            "d4:listli9ei8ei7ee6:string5:hello3:mapd1:ai1e1:bi2e1:ci3eee"
+            if cfg!(not(feature = "sort_dictionary")) {
+                "d4:unit0:4:listli9ei8ei7ee6:string5:hello3:mapd1:ai1e1:bi2e1:ci3eee"
+            } else {
+                "d3:mapd1:ai1e1:bi2e1:ci3ee4:listli9ei8ei7ee4:unit0:6:string5:helloe"
+            }
         );
+
         Ok(())
+    }
+
+    #[test]
+    fn test() {
+
+        println!("{:?}", to_string(&(10, "hello world".to_string())));
     }
 }
