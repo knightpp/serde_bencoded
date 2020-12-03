@@ -5,7 +5,7 @@
     only when `sort_dictionary` feature enabled. Must be fast enough.
 
     ## Examples
-    See
+    For `.torrent` parsing example see [`examples directory`](https://github.com/knightpp/serde_bencoded/tree/master/examples)
 
     ## Caveats
     `serde` treats `[u8; N]`, `Vec<u8>`, `&[u8]` like any other
@@ -102,7 +102,6 @@ mod de;
 mod error;
 mod ser;
 
-// pub use de::{from_str, Deserializer};
 pub use de::{from_bytes, from_str, Deserializer};
 pub use error::{DeError, DeResult, SerError, SerResult};
 pub use ser::{to_string, to_vec, to_writer, Serializer};
