@@ -694,10 +694,4 @@ mod tests {
 
         Ok(())
     }
-
-    #[test]
-    fn test() {
-
-        println!("{:?}", to_string(&(10, "hello world".to_string())));
-    }
 }
