@@ -6,15 +6,22 @@ edition = "2018"
 
 [features]
 default = ["sort_dictionary"]
-bool = []
-none_is_err = []
+# Enables sort by keys when serializing to bencode dictionary.
 sort_dictionary = []
 
 [dependencies]
 serde = "1.0"
 itoa = "0.4"
+# for Deserializer
+btoi = "0.4"
 
 [dev-dependencies]
 serde_bytes = "0.11"
 serde = { version = "1.0", features = ["derive"] }
 hashers = "1.0"
+atty = "0.2"
+criterion = "0.3"
+
+[[bench]]
+name = "bench"
+harness = false
