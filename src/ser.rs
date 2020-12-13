@@ -417,8 +417,14 @@ mod dict_serializer {
                 .iter_mut()
                 .zip(self.values.iter_mut())
                 .collect::<Vec<_>>();
-            // TODO: find out what is raw string sort? Is it right?
-            map.sort_by(|(k1, _), (k2, _)| k1.cmp(k2));
+            // seems we need to skip bencode header of the string
+            map.sort_by(|(k1, _), (k2, _)| {
+                // if we here than keys should already be valid bencode strings
+                // so it's safe to unwrap
+                let k1s = k1.iter().position(|x| *x == b':').unwrap() + 1;
+                let k2s = k2.iter().position(|x| *x == b':').unwrap() + 1;
+                k1[k1s..].cmp(&k2[k2s..])
+            });
             for (key, value) in map {
                 self.parent.writer.write(key)?;
                 self.parent.writer.write(value)?;
@@ -688,7 +694,7 @@ mod tests {
             if cfg!(not(feature = "sort_dictionary")) {
                 "d4:unit0:4:listli9ei8ei7ee6:string5:hello3:mapd1:ai1e1:bi2e1:ci3eee"
             } else {
-                "d3:mapd1:ai1e1:bi2e1:ci3ee4:listli9ei8ei7ee4:unit0:6:string5:helloe"
+                "d4:listli9ei8ei7ee3:mapd1:ai1e1:bi2e1:ci3ee6:string5:hello4:unit0:e"
             }
         );
 
