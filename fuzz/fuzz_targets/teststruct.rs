@@ -16,6 +16,17 @@ struct UnitStruct;
 struct NewtypeStruct(u8);
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[serde(tag = "t", content = "c")]
+enum E {
+    N(u8),
+}
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[serde(tag = "y")]
+enum K {
+    E(E),
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
 pub struct TestStruct {
     test_enum: TestEnum,
     unit: (),
@@ -27,4 +38,5 @@ pub struct TestStruct {
     unit_struct: UnitStruct,
     newtype_struct: NewtypeStruct,
     tuple: (u64, String),
+    nested_enum_adjacently_tagged: K,
 }
