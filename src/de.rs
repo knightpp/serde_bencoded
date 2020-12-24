@@ -136,7 +136,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'i' => self.deserialize_u64(visitor),
             b'l' => self.deserialize_seq(visitor),
             b'd' => self.deserialize_map(visitor),
-            b'0'..=b'9' => self.deserialize_bytes(visitor),
+            b'0'..=b'9' => self.deserialize_str(visitor),
             // b'e' => {
             //     // self.advance()?;
             //     visitor.visit_unit()
@@ -567,6 +567,23 @@ mod tests {
         }
         assert_eq!(from_str::<E>("d1:Ni1ee")?, E::N(1));
         assert_eq!(from_str::<E>("d1:S3:bufe")?, E::S("buf"));
+        Ok(())
+    }
+
+    #[test]
+    fn nested_enum_adjacently_tagged() -> Ret {
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(tag = "t", content="c")]
+        enum E {
+            N(u8),
+        }
+        #[derive(Debug, Deserialize, Eq, PartialEq)]
+        #[serde(tag = "y")]
+        enum K {
+            E(E),
+        }
+
+        assert_eq!(from_str::<K>("d1:y1:E1:t1:N1:ci1ee")?, K::E(E::N(1)));
         Ok(())
     }
 }
