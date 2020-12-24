@@ -573,7 +573,7 @@ mod tests {
     #[test]
     fn nested_enum_adjacently_tagged() -> Ret {
         #[derive(Debug, Deserialize, Eq, PartialEq)]
-        #[serde(tag = "t", content="c")]
+        #[serde(tag = "t", content = "c")]
         enum E {
             N(u8),
         }
