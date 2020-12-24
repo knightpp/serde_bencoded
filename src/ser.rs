@@ -442,11 +442,10 @@ mod dict_serializer {
         where
             T: Serialize,
         {
-            self.keys.push(Vec::new());
-            let mut temp_ser = Serializer {
-                writer: self.keys.last_mut().unwrap(),
-            };
+            let mut v = Vec::new();
+            let mut temp_ser = Serializer { writer: &mut v };
             key.serialize(&mut only_string_ser::OnlyStringSerializer { ser: &mut temp_ser })?;
+            self.keys.push(v);
             Ok(())
         }
 
@@ -454,11 +453,10 @@ mod dict_serializer {
         where
             T: Serialize,
         {
-            self.values.push(Vec::new());
-            let mut temp_ser = Serializer {
-                writer: self.values.last_mut().unwrap(),
-            };
+            let mut v = Vec::new();
+            let mut temp_ser = Serializer { writer: &mut v };
             value.serialize(&mut temp_ser)?;
+            self.values.push(v);
             Ok(())
         }
 
