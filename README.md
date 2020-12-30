@@ -5,8 +5,8 @@
 What is bencode? It's the encoding mostly used in `.torrent` files and BitTorrent protocol.
 For more info see [BitTorrentSpecification#Bencoding](https://wiki.theory.org/index.php/BitTorrentSpecification#Bencoding).
 
-# Fast example
-
+# Quick example
+See `examples` directory
 ```rust
 #[derive(Debug, Serialize, Deserialize)]
 struct MetaInfo {
