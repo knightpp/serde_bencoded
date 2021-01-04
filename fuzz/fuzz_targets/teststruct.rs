@@ -19,11 +19,15 @@ struct NewtypeStruct(u8);
 #[serde(tag = "t", content = "c")]
 enum E {
     N(u8),
+    Z(u16),
+    X(u32),
+    U(u64),
 }
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
 #[serde(tag = "y")]
 enum K {
     E(E),
+    F(E),
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
@@ -38,5 +42,9 @@ pub struct TestStruct {
     unit_struct: UnitStruct,
     newtype_struct: NewtypeStruct,
     tuple: (u64, String),
+}
+
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+pub struct TestStructAuto {
     nested_enum_adjacently_tagged: K,
 }
