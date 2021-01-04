@@ -1,23 +1,82 @@
+use std::marker::PhantomData;
+
 use crate::error::{DeError as Error, DeResult as Result};
 use serde::{
     de::{self, DeserializeSeed, Visitor},
     Deserialize,
 };
 
-pub struct Deserializer<'de> {
-    input: &'de [u8],
+pub struct Auto;
+impl private::Sealed for Auto {}
+impl Behaviour for Auto {
+    fn deserialize_byte_string<'de, Te: Behaviour, V: Visitor<'de>>(
+        de: &mut Deserializer<'de, Te>,
+        visitor: V,
+    ) -> Result<V::Value> {
+        let bytes = de.parse_byte_string()?;
+        match std::str::from_utf8(bytes).ok() {
+            Some(s) => visitor.visit_borrowed_str(s),
+            None => visitor.visit_borrowed_bytes(bytes),
+        }
+    }
 }
 
-impl<'de> Deserializer<'de> {
+pub struct Simple;
+impl private::Sealed for Simple {}
+impl Behaviour for Simple {
+    fn deserialize_byte_string<'de, Te: Behaviour, V: Visitor<'de>>(
+        de: &mut Deserializer<'de, Te>,
+        visitor: V,
+    ) -> Result<V::Value> {
+        de::Deserializer::deserialize_bytes(de, visitor)
+    }
+}
+mod private {
+    pub trait Sealed {}
+}
+pub trait Behaviour: private::Sealed {
+    fn deserialize_byte_string<'de, Te: Behaviour, V: Visitor<'de>>(
+        // &self,
+        de: &mut Deserializer<'de, Te>,
+        visitor: V,
+    ) -> Result<V::Value>;
+}
+
+pub struct Deserializer<'de, T: Behaviour> {
+    input: &'de [u8],
+    _marker: PhantomData<T>,
+}
+
+impl<'de> Deserializer<'de, Simple> {
     pub fn from_bytes(input: &'de [u8]) -> Self {
-        Deserializer { input }
+        Deserializer {
+            input,
+            _marker: PhantomData,
+        }
     }
     pub fn from_str(input: &'de str) -> Self {
         Deserializer {
             input: input.as_bytes(),
+            _marker: PhantomData,
         }
     }
 }
+
+impl<'de> Deserializer<'de, Auto> {
+    pub fn from_bytes_auto(input: &'de [u8]) -> Self {
+        Deserializer {
+            input,
+            _marker: PhantomData,
+        }
+    }
+    pub fn from_str_auto(input: &'de str) -> Self {
+        Deserializer {
+            input: input.as_bytes(),
+            _marker: PhantomData,
+        }
+    }
+}
+
 /// Deserializes bencoded `&str` to rust's value.
 /// # Examples
 /** ```
@@ -33,7 +92,27 @@ pub fn from_str<'a, T>(s: &'a str) -> Result<T>
 where
     T: Deserialize<'a>,
 {
-    let mut deserializer = Deserializer::from_str(s);
+    _from_slice::<T, Simple>(s.as_bytes())
+}
+
+/// The same as [`from_str`] but `deserialize_any`
+/// will deserialize byte string as `str` if
+/// input bytes are valid UTF-8, otherwise as `bytes`
+pub fn from_str_auto<'a, T>(s: &'a str) -> Result<T>
+where
+    T: Deserialize<'a>,
+{
+    _from_slice::<T, Auto>(s.as_bytes())
+}
+
+fn _from_slice<'a, T, B: Behaviour>(slice: &'a [u8]) -> Result<T>
+where
+    T: Deserialize<'a>,
+{
+    let mut deserializer = Deserializer::<B> {
+        input: slice,
+        _marker: PhantomData,
+    };
     let t = T::deserialize(&mut deserializer)?;
     if deserializer.input.is_empty() {
         Ok(t)
@@ -41,6 +120,7 @@ where
         Err(Error::SyntaxError(deserializer.input[0], None))
     }
 }
+
 /// Deserializes bencoded bytes to rust's value.
 /// # Examples
 /** ```
@@ -56,16 +136,19 @@ pub fn from_bytes<'a, T>(b: &'a [u8]) -> Result<T>
 where
     T: Deserialize<'a>,
 {
-    let mut deserializer = Deserializer::from_bytes(b);
-    let t = T::deserialize(&mut deserializer)?;
-    if deserializer.input.is_empty() {
-        Ok(t)
-    } else {
-        Err(Error::SyntaxError(deserializer.input[0], None))
-    }
+    _from_slice::<T, Simple>(b)
+}
+/// The same as [`from_bytes`] but `deserialize_any`
+/// will deserialize byte string as `str` if
+/// input bytes are valid UTF-8, otherwise as `bytes`
+pub fn from_bytes_auto<'a, T>(b: &'a [u8]) -> Result<T>
+where
+    T: Deserialize<'a>,
+{
+    _from_slice::<T, Auto>(b)
 }
 
-impl<'de> Deserializer<'de> {
+impl<'de, T: Behaviour> Deserializer<'de, T> {
     fn peek_next(&self) -> Result<u8> {
         self.input.first().copied().ok_or(Error::UnexpectedEof)
     }
@@ -124,7 +207,7 @@ fn slice_while(bytes: &[u8], end_byte: u8) -> Result<&[u8]> {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de, 'a, T: Behaviour> de::Deserializer<'de> for &'a mut Deserializer<'de, T> {
     type Error = Error;
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -135,11 +218,15 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
             b'i' if self.peek_second()? == b'-' => self.deserialize_i64(visitor),
             b'i' => self.deserialize_u64(visitor),
             b'l' => self.deserialize_seq(visitor),
-            b'd' => self.deserialize_map(visitor),
-            b'0'..=b'9' => self.deserialize_str(visitor),
+            b'd' => {
+                let map = self.deserialize_map(visitor);
+                // self.advance()?;
+                map
+            }
+            b'0'..=b'9' => T::deserialize_byte_string(self, visitor),
             // b'e' => {
-            //     // self.advance()?;
-            //     visitor.visit_unit()
+            //     self.advance()?;
+            //     // visitor.visit_unit()
             // }
             other => Err(Error::SyntaxError(other, None)),
         }
@@ -372,10 +459,10 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     }
 }
 
-struct ListAccess<'m, 'de: 'm> {
-    de: &'m mut Deserializer<'de>,
+struct ListAccess<'m, 'de: 'm, T: Behaviour> {
+    de: &'m mut Deserializer<'de, T>,
 }
-impl<'de, 'm> de::SeqAccess<'de> for ListAccess<'m, 'de> {
+impl<'de, 'm, Te: Behaviour> de::SeqAccess<'de> for ListAccess<'m, 'de, Te> {
     type Error = Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
@@ -392,7 +479,7 @@ impl<'de, 'm> de::SeqAccess<'de> for ListAccess<'m, 'de> {
     }
 }
 
-impl<'de> de::MapAccess<'de> for Deserializer<'de> {
+impl<'de, T: Behaviour> de::MapAccess<'de> for Deserializer<'de, T> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -417,7 +504,7 @@ impl<'de> de::MapAccess<'de> for Deserializer<'de> {
     }
 }
 
-impl<'de> de::VariantAccess<'de> for &mut Deserializer<'de> {
+impl<'de, Te: Behaviour> de::VariantAccess<'de> for &mut Deserializer<'de, Te> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
@@ -446,7 +533,7 @@ impl<'de> de::VariantAccess<'de> for &mut Deserializer<'de> {
     }
 }
 
-impl<'de> de::EnumAccess<'de> for &mut Deserializer<'de> {
+impl<'de, T: Behaviour> de::EnumAccess<'de> for &mut Deserializer<'de, T> {
     type Error = Error;
 
     type Variant = Self;
@@ -571,7 +658,7 @@ mod tests {
     }
 
     #[test]
-    fn nested_enum_adjacently_tagged() -> Ret {
+    fn nested_enum_adjacently_tagged_auto() -> Ret {
         #[derive(Debug, Deserialize, Eq, PartialEq)]
         #[serde(tag = "t", content = "c")]
         enum E {
@@ -582,8 +669,73 @@ mod tests {
         enum K {
             E(E),
         }
+        assert_eq!(from_str_auto::<K>("d1:y1:E1:t1:N1:ci1ee")?, K::E(E::N(1)));
+        Ok(())
+    }
 
-        assert_eq!(from_str::<K>("d1:y1:E1:t1:N1:ci1ee")?, K::E(E::N(1)));
+    #[test]
+    fn test_auto() -> Ret {
+        #[derive(Debug, PartialEq, Eq)]
+        struct TestAuto {
+            string: String,
+            bytes: Box<[u8]>,
+        }
+
+        struct TestAutoVisitor;
+        impl<'de> Visitor<'de> for TestAutoVisitor {
+            type Value = TestAuto;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                todo!()
+            }
+
+            fn visit_map<A>(self, mut map: A) -> std::result::Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut string = None;
+                let mut bytes: Option<&[u8]> = None;
+
+                match map.next_key()?.unwrap() {
+                    "string" => string = Some(map.next_value()?),
+                    "bytes" => bytes = Some(map.next_value()?),
+                    _ => panic!(),
+                };
+                match map.next_key()?.unwrap() {
+                    "string" => string = Some(map.next_value()?),
+                    "bytes" => bytes = Some(map.next_value()?),
+                    _ => panic!(),
+                };
+                assert!(map.next_key::<()>()?.is_none());
+                Ok(TestAuto {
+                    bytes: bytes.unwrap().to_vec().into_boxed_slice(),
+                    string: string.unwrap(),
+                })
+            }
+        }
+
+        impl<'de> de::Deserialize<'de> for TestAuto {
+            fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                deserializer.deserialize_any(TestAutoVisitor)
+            }
+        }
+        let input = b"d6:string4:12345:bytes4:"
+            .iter()
+            .chain([1, 2, 3, 4].iter())
+            .chain(b"e")
+            .copied()
+            .collect::<Box<[u8]>>();
+        let de = from_bytes_auto::<TestAuto>(&input)?;
+        assert_eq!(
+            de,
+            TestAuto {
+                string: String::from("1234"),
+                bytes: vec![1, 2, 3, 4].into_boxed_slice(),
+            }
+        );
         Ok(())
     }
 }
