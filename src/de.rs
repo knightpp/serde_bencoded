@@ -98,6 +98,10 @@ where
 /// The same as [`from_str`] but `deserialize_any`
 /// will deserialize byte string as `str` if
 /// input bytes are valid UTF-8, otherwise as `bytes`
+/// ### Note
+/// Thus making impossible to deserialize advanced Serde
+/// constructs like tagged enums with some penalty for
+/// simpler use cases.
 pub fn from_str_auto<'a, T>(s: &'a str) -> Result<T>
 where
     T: Deserialize<'a>,
@@ -140,7 +144,11 @@ where
 }
 /// The same as [`from_bytes`] but `deserialize_any`
 /// will deserialize byte string as `str` if
-/// input bytes are valid UTF-8, otherwise as `bytes`
+/// input bytes are valid UTF-8, otherwise as `bytes`.
+/// ### Note
+/// Thus making impossible to deserialize advanced Serde
+/// constructs like tagged enums with some penalty for
+/// simpler use cases.
 pub fn from_bytes_auto<'a, T>(b: &'a [u8]) -> Result<T>
 where
     T: Deserialize<'a>,
