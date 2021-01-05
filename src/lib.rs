@@ -102,6 +102,6 @@ mod de;
 mod error;
 mod ser;
 
-pub use de::{from_bytes, from_str, Deserializer};
+pub use de::{from_bytes, from_bytes_auto, from_str, from_str_auto, Deserializer};
 pub use error::{DeError, DeResult, SerError, SerResult};
 pub use ser::{to_string, to_vec, to_writer, Serializer};
