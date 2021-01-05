@@ -721,14 +721,9 @@ mod tests {
             {
                 deserializer.deserialize_any(TestAutoVisitor)
             }
-        }
-        let input = b"d6:string4:12345:bytes4:"
-            .iter()
-            .chain([1, 2, 3, 4].iter())
-            .chain(b"e")
-            .copied()
-            .collect::<Box<[u8]>>();
-        let de = from_bytes_auto::<TestAuto>(&input)?;
+        };
+        let input = b"d6:string4:12345:bytes4:\x01\x02\x03\x04e";
+        let de = from_bytes_auto::<TestAuto>(input)?;
         assert_eq!(
             de,
             TestAuto {
