@@ -730,13 +730,13 @@ mod tests {
                 deserializer.deserialize_any(TestAutoVisitor)
             }
         };
-        let input = b"d6:string4:12345:bytes4:\x01\x02\x03\x04e";
+        let input = b"d6:string4:12345:bytes4:\x01\x02\x03\xFFe";
         let de = from_bytes_auto::<TestAuto>(input)?;
         assert_eq!(
             de,
             TestAuto {
                 string: String::from("1234"),
-                bytes: vec![1, 2, 3, 4].into_boxed_slice(),
+                bytes: vec![1, 2, 3, 0xFF].into_boxed_slice(),
             }
         );
         Ok(())
