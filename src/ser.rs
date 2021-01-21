@@ -10,7 +10,7 @@ pub struct Serializer<T: Write> {
 
 impl<W: Write> Serializer<W> {
     fn write_byte(&mut self, byte: u8) -> Result<()> {
-        self.writer.write(&[byte])?;
+        self.writer.write_all(&[byte])?;
         Ok(())
     }
 }
@@ -150,9 +150,9 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         let length = v.len();
         itoa::write(&mut self.writer, length)?;
-        self.writer.write(&[b':'])?;
+        self.writer.write_all(&[b':'])?;
         // TODO: should I use `write_all()`?
-        self.writer.write(v)?;
+        self.writer.write_all(v)?;
         Ok(())
     }
 
@@ -168,7 +168,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {
-        self.writer.write(b"0:")?; // we can serialize units as empty strings
+        self.writer.write_all(b"0:")?; // we can serialize units as empty strings
         Ok(())
     }
 
@@ -426,8 +426,8 @@ mod dict_serializer {
                 k1[k1s..].cmp(&k2[k2s..])
             });
             for (key, value) in map {
-                self.parent.writer.write(key)?;
-                self.parent.writer.write(value)?;
+                self.parent.writer.write_all(key)?;
+                self.parent.writer.write_all(value)?;
             }
             self.parent.write_byte(b'e')?;
             Ok(())
