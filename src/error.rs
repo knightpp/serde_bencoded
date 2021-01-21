@@ -33,6 +33,12 @@ pub enum DeError {
     ExpectedCharString,
 }
 
+impl From<btoi::ParseIntegerError> for DeError {
+    fn from(e: btoi::ParseIntegerError) -> Self {
+        DeError::ParseIntegerError(e)
+    }
+}
+
 impl From<std::str::Utf8Error> for DeError {
     fn from(x: std::str::Utf8Error) -> Self {
         DeError::Utf8Error(x)

@@ -87,7 +87,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     type SerializeStructVariant = Self;
 
     fn serialize_bool(self, v: bool) -> Result<Self::Ok> {
-        return self.serialize_u64(v as u64);
+        self.serialize_u64(v as u64)
     }
 
     fn serialize_i8(self, v: i8) -> Result<Self::Ok> {
@@ -157,7 +157,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
-        return Ok(());
+        Ok(())
     }
 
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>

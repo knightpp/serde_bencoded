@@ -174,7 +174,7 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
 
     fn parse_byte_string(&mut self) -> Result<&'de [u8]> {
         let num_bytes = self.advance_to(b':')?;
-        let num_bytes: usize = btoi::btoi(num_bytes).map_err(|e| Error::ParseIntegerError(e))?;
+        let num_bytes: usize = btoi::btoi(num_bytes)?;
         let bytes = self.advance_by(num_bytes)?;
         Ok(bytes)
     }
@@ -226,11 +226,7 @@ impl<'de, 'a, T: Behaviour> de::Deserializer<'de> for &'a mut Deserializer<'de, 
             b'i' if self.peek_second()? == b'-' => self.deserialize_i64(visitor),
             b'i' => self.deserialize_u64(visitor),
             b'l' => self.deserialize_seq(visitor),
-            b'd' => {
-                let map = self.deserialize_map(visitor);
-                // self.advance()?;
-                map
-            }
+            b'd' => self.deserialize_map(visitor),
             b'0'..=b'9' => T::deserialize_byte_string(self, visitor),
             // b'e' => {
             //     self.advance()?;
@@ -248,9 +244,9 @@ impl<'de, 'a, T: Behaviour> de::Deserializer<'de> for &'a mut Deserializer<'de, 
         if self.advance()? == b'i' {
             let b = self.advance_to_e()?;
             if b.len() != 1 || ![b'0', b'1'].contains(&b[0]) {
-                return Err(Error::Message(
+                Err(Error::Message(
                     "expected integer between `0` to `1`".to_string(),
-                ));
+                ))
             } else {
                 visitor.visit_bool(b[0] == b'1')
             }
@@ -267,8 +263,7 @@ impl<'de, 'a, T: Behaviour> de::Deserializer<'de> for &'a mut Deserializer<'de, 
         if marker != b'i' {
             return Err(Error::SyntaxError(marker, Some(b'i')));
         }
-        visitor
-            .visit_i64(btoi::btoi(self.advance_to_e()?).map_err(|x| Error::ParseIntegerError(x))?)
+        visitor.visit_i64(btoi::btoi(self.advance_to_e()?)?)
     }
 
     fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
@@ -279,8 +274,7 @@ impl<'de, 'a, T: Behaviour> de::Deserializer<'de> for &'a mut Deserializer<'de, 
         if marker != b'i' {
             return Err(Error::SyntaxError(marker, Some(b'i')));
         }
-        visitor
-            .visit_u64(btoi::btoi(self.advance_to_e()?).map_err(|x| Error::ParseIntegerError(x))?)
+        visitor.visit_u64(btoi::btoi(self.advance_to_e()?)?)
     }
 
     fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
