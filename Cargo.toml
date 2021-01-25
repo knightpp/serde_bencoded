@@ -27,7 +27,8 @@ btoi = "0.4"
 serde_bytes = "0.11"
 serde = { version = "1.0", features = ["derive"] }
 hashers = "1.0"
-atty = "0.2"
+atty = "0.2" # for the example
+bytesize = "1.0" # for the example
 criterion = "0.3"
 
 [[bench]]
