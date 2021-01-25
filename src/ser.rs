@@ -456,7 +456,11 @@ mod dict_serializer {
             let mut v = Vec::new();
             let mut temp_ser = Serializer { writer: &mut v };
             value.serialize(&mut temp_ser)?;
-            self.values.push(v);
+            if v.is_empty() {
+                self.keys.pop();
+            } else {
+                self.values.push(v);
+            }
             Ok(())
         }
 
