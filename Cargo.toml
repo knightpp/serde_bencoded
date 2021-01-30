@@ -1,6 +1,6 @@
 [package]
 name = "serde_bencoded"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Danil Kondratiev <knightpp@protonmail.com>"]
 license = "MIT OR Apache-2.0"
 edition = "2018"
