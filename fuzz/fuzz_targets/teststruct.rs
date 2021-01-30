@@ -37,6 +37,7 @@ pub struct TestStruct {
     str: String,
     u64: u64,
     char: char,
+    #[serde(skip_serializing_if = "Option::is_none")]
     option: Option<i64>,
     i64: i64,
     unit_struct: UnitStruct,

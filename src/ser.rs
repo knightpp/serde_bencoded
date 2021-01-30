@@ -157,7 +157,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     }
 
     fn serialize_none(self) -> Result<Self::Ok> {
-        Ok(())
+        Err(Error::NoneNotSupported)
     }
 
     fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
@@ -168,7 +168,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok> {
-        self.writer.write_all(b"0:")?; // we can serialize units as empty strings
+        self.writer.write_all(b"0:")?;
         Ok(())
     }
 
@@ -419,7 +419,7 @@ mod dict_serializer {
                 .collect::<Vec<_>>();
             // seems we need to skip bencode header of the string
             map.sort_by(|(k1, _), (k2, _)| {
-                // if we here than keys should already be valid bencode strings
+                // if we are here than keys should already be valid bencode strings
                 // so it's safe to unwrap
                 let k1s = k1.iter().position(|x| *x == b':').unwrap() + 1;
                 let k2s = k2.iter().position(|x| *x == b':').unwrap() + 1;
@@ -456,11 +456,7 @@ mod dict_serializer {
             let mut v = Vec::new();
             let mut temp_ser = Serializer { writer: &mut v };
             value.serialize(&mut temp_ser)?;
-            if v.is_empty() {
-                self.keys.pop();
-            } else {
-                self.values.push(v);
-            }
+            self.values.push(v);
             Ok(())
         }
 
@@ -477,25 +473,20 @@ mod dict_serializer {
         where
             T: Serialize,
         {
-            // key
             let key = {
                 let mut buf = Vec::new();
                 let mut temp_ser = Serializer { writer: &mut buf };
                 key.serialize(&mut temp_ser)?;
                 buf
             };
-            // value
             let value = {
                 let mut buf = Vec::new();
                 let mut temp_ser = Serializer { writer: &mut buf };
                 value.serialize(&mut temp_ser)?;
                 buf
             };
-            // needed for correct serialization of `Option`
-            if !value.is_empty() {
-                self.keys.push(key);
-                self.values.push(value);
-            }
+            self.keys.push(key);
+            self.values.push(value);
             Ok(())
         }
 
@@ -558,7 +549,9 @@ mod tests {
     #[test]
     fn options() -> std::result::Result<(), Box<dyn std::error::Error>> {
         assert_eq!(&to_string(&Some(1))?, "i1e");
-        assert_eq!(&to_string(&Option::<u8>::None)?, "");
+        let none = to_string(&Option::<u8>::None);
+        assert!(none.is_err());
+        assert_eq!(none.unwrap_err(), Error::NoneNotSupported);
         Ok(())
     }
 
@@ -660,6 +653,28 @@ mod tests {
             #[cfg(not(feature = "sort_dictionary"))]
             assert_eq!(&to_string(&map)?, "d1:ci3e1:bi2e1:ai1ee");
         }
+
+        Ok(())
+    }
+
+    /// map with `Option` values are not supported. You will need to write
+    /// a custom ser/de helpers for that.
+    #[test]
+    fn map_of_options() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        use std::collections::HashMap;
+
+        let mut map = HashMap::with_hasher(std::hash::BuildHasherDefault::<
+            hashers::fx_hash::FxHasher,
+        >::default());
+        map.insert("e", None);
+        map.insert("d", Some(8));
+        map.insert("c", None);
+        map.insert("b", None);
+        map.insert("a", Some(3));
+        let b = to_string(&map);
+        assert!(b.is_err());
+        assert_eq!(b.unwrap_err(), Error::NoneNotSupported);
+        // assert_eq!(&to_string(&map)?, "d1:ai3e1:di8ee");
 
         Ok(())
     }

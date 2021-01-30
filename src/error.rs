@@ -5,7 +5,7 @@ use serde::{de, ser};
 pub type SerResult<T> = std::result::Result<T, SerError>;
 pub type DeResult<T> = std::result::Result<T, DeError>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SerError {
     Message(String),
     FloatingPointNotSupported,
@@ -13,8 +13,9 @@ pub enum SerError {
     DictionaryKeyMustBeString,
     /// Wrapper for [`FromUtf8Error`](std::string::FromUtf8Error)
     FromUtf8Error(std::string::FromUtf8Error),
+    NoneNotSupported,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DeError {
     Message(String),
     UnexpectedEof,
@@ -87,7 +88,8 @@ impl Display for SerError {
                 f.write_str("floating point numbers are not supported")
             }
             SerError::FromUtf8Error(ue) => f.write_fmt(format_args!("{}", ue)),
-        }
+            SerError::NoneNotSupported => f.write_str("`None` variant of `Option` is not supported, perhaps you need `#[serde(skip_serializing_if = \"Option::is_none\")]`")
+            }
     }
 }
 
