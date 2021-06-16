@@ -198,21 +198,12 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
 /// # Return
 /// Can return empty slice (`.len` == 0).
 fn slice_while(bytes: &[u8], end_byte: u8) -> Result<&[u8]> {
-    let mut end = None;
-    for (i, v) in bytes.iter().enumerate() {
-        if *v == end_byte {
-            end = Some(i);
-            break;
-        }
-    }
-    match end {
-        Some(end_index) => {
-            let ret = &bytes[0..end_index];
-            // self.input = &self.input[(end_index + 1)..];
-            Ok(ret)
-        }
-        None => Err(Error::UnexpectedEof),
-    }
+    bytes
+        .iter()
+        .enumerate()
+        .find(|(_, x)| **x == end_byte)
+        .map(|(i, _)| &bytes[0..i])
+        .ok_or(Error::UnexpectedEof)
 }
 
 impl<'de, 'a, T: Behaviour> de::Deserializer<'de> for &'a mut Deserializer<'de, T> {
