@@ -168,6 +168,9 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
     }
     fn advance(&mut self) -> Result<u8> {
         let ret = self.peek_next();
+        if self.input.len() == 0 {
+            return Err(Error::UnexpectedEof);
+        }
         self.input = &self.input[1..];
         ret
     }
@@ -180,6 +183,9 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
     }
 
     fn advance_by(&mut self, len: usize) -> Result<&'de [u8]> {
+        if len > self.input.len(){
+            return Err(Error::UnexpectedEof);
+        }
         let ret = &self.input[0..len];
         self.input = &self.input[(ret.len())..];
         Ok(ret)
@@ -190,6 +196,9 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
     }
     fn advance_to(&mut self, byte: u8) -> Result<&'de [u8]> {
         let ret = slice_while(self.input, byte)?;
+        if ret.len() + 1 > self.input.len(){
+            return Err(Error::UnexpectedEof);
+        }
         self.input = &self.input[(ret.len() + 1)..];
         Ok(ret)
     }
@@ -493,7 +502,7 @@ impl<'de, T: Behaviour> de::MapAccess<'de> for Deserializer<'de, T> {
     where
         V: DeserializeSeed<'de>,
     {
-        Ok(seed.deserialize(&mut *self)?)
+        seed.deserialize(&mut *self)
     }
 }
 
