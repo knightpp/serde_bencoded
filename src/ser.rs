@@ -148,10 +148,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     /// Serializes bytes as `Byte String`
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        let length = v.len();
-        itoa::write(&mut self.writer, length)?;
+        itoa::write(&mut self.writer, v.len())?;
         self.writer.write_all(&[b':'])?;
-        // TODO: should I use `write_all()`?
         self.writer.write_all(v)?;
         Ok(())
     }

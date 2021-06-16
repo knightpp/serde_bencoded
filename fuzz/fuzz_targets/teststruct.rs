@@ -1,6 +1,6 @@
-use arbitrary::Arbitrary;
+use libfuzzer_sys::arbitrary;
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, arbitrary::Arbitrary)]
 enum TestEnum {
     A,
     B(()),
@@ -10,12 +10,12 @@ enum TestEnum {
     F((u64, u64)),
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, arbitrary::Arbitrary)]
 struct UnitStruct;
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, arbitrary::Arbitrary)]
 struct NewtypeStruct(u8);
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, arbitrary::Arbitrary)]
 #[serde(tag = "t", content = "c")]
 enum E {
     N(u8),
@@ -23,14 +23,14 @@ enum E {
     X(u32),
     U(u64),
 }
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, arbitrary::Arbitrary)]
 #[serde(tag = "y")]
 enum K {
     E(E),
     F(E),
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, arbitrary::Arbitrary)]
 pub struct TestStruct {
     test_enum: TestEnum,
     unit: (),
@@ -45,7 +45,7 @@ pub struct TestStruct {
     tuple: (u64, String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Arbitrary)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, arbitrary::Arbitrary)]
 pub struct TestStructAuto {
     nested_enum_adjacently_tagged: K,
 }

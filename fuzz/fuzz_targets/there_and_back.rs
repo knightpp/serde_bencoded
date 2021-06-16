@@ -1,6 +1,5 @@
 #![no_main]
-use arbitrary::{Arbitrary, Unstructured};
-use libfuzzer_sys::fuzz_target;
+use libfuzzer_sys::{arbitrary::{Unstructured, Arbitrary}, fuzz_target};
 use serde_bencoded::{from_str, from_str_auto, to_string};
 
 mod teststruct;

@@ -9,9 +9,8 @@ edition = "2018"
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.3"
-arbitrary = { version = "0.4", features = ["derive"] }
-serde = { version = "1.0", features = ["derive"] }
+libfuzzer-sys = { version="0.4", features=["arbitrary-derive"] }
+serde = { version="1.0", features=["derive"] }
 
 [dependencies.serde_bencoded]
 path = ".."
@@ -23,5 +22,11 @@ members = ["."]
 [[bin]]
 name = "there_and_back"
 path = "fuzz_targets/there_and_back.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "random"
+path = "fuzz_targets/random.rs"
 test = false
 doc = false
