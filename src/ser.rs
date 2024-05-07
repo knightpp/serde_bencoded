@@ -6,6 +6,16 @@ mod only_string_ser;
 
 pub struct Serializer<T: Write> {
     writer: T,
+    int_buf: itoa::Buffer,
+}
+
+impl<T: Write> Serializer<T> {
+    fn new(writer: T) -> Self {
+        Serializer {
+            writer,
+            int_buf: itoa::Buffer::new(),
+        }
+    }
 }
 
 impl<W: Write> Serializer<W> {
@@ -50,14 +60,20 @@ assert_eq!(&buf, b"4:abcd");
 # }
 ```*/
 pub fn to_writer<T: Serialize, W: Write>(value: &T, writer: W) -> Result<()> {
-    let mut serializer = Serializer { writer };
+    let mut serializer = Serializer {
+        writer,
+        int_buf: itoa::Buffer::new(),
+    };
     value.serialize(&mut serializer)?;
     Ok(())
 }
 /// Convenient function to get encoded value as bytes
 pub fn to_vec<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
-    let mut serializer = Serializer { writer: &mut buf };
+    let mut serializer = Serializer {
+        writer: &mut buf,
+        int_buf: itoa::Buffer::new(),
+    };
     value.serialize(&mut serializer)?;
     Ok(buf)
 }
@@ -104,7 +120,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
         self.write_byte(b'i')?;
-        let _ = itoa::write(&mut self.writer, v)?;
+        let str = self.int_buf.format(v);
+        self.writer.write_all(str.as_bytes())?;
         self.write_byte(b'e')?;
         Ok(())
     }
@@ -123,7 +140,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
         self.write_byte(b'i')?;
-        let _ = itoa::write(&mut self.writer, v)?;
+        let str = self.int_buf.format(v);
+        self.writer.write_all(str.as_bytes())?;
         self.write_byte(b'e')?;
         Ok(())
     }
@@ -139,7 +157,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     fn serialize_char(self, v: char) -> Result<Self::Ok> {
         let mut buf = [0u8; 4];
         let str = v.encode_utf8(&mut buf);
-        self.serialize_bytes(&str.as_bytes())
+        self.serialize_bytes(str.as_bytes())
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
@@ -148,7 +166,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     /// Serializes bytes as `Byte String`
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        itoa::write(&mut self.writer, v.len())?;
+        let str = self.int_buf.format(v.len());
+        self.writer.write_all(str.as_bytes())?;
         self.writer.write_all(&[b':'])?;
         self.writer.write_all(v)?;
         Ok(())
@@ -441,7 +460,7 @@ mod dict_serializer {
             T: Serialize + ?Sized,
         {
             let mut v = Vec::new();
-            let mut temp_ser = Serializer { writer: &mut v };
+            let mut temp_ser = Serializer::new(&mut v);
             key.serialize(&mut only_string_ser::OnlyStringSerializer { ser: &mut temp_ser })?;
             self.keys.push(v);
             Ok(())
@@ -452,7 +471,7 @@ mod dict_serializer {
             T: Serialize + ?Sized,
         {
             let mut v = Vec::new();
-            let mut temp_ser = Serializer { writer: &mut v };
+            let mut temp_ser = Serializer::new(&mut v);
             value.serialize(&mut temp_ser)?;
             self.values.push(v);
             Ok(())
@@ -473,13 +492,13 @@ mod dict_serializer {
         {
             let key = {
                 let mut buf = Vec::new();
-                let mut temp_ser = Serializer { writer: &mut buf };
+                let mut temp_ser = Serializer::new(&mut buf);
                 key.serialize(&mut temp_ser)?;
                 buf
             };
             let value = {
                 let mut buf = Vec::new();
-                let mut temp_ser = Serializer { writer: &mut buf };
+                let mut temp_ser = Serializer::new(&mut buf);
                 value.serialize(&mut temp_ser)?;
                 buf
             };
