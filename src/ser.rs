@@ -6,6 +6,16 @@ mod only_string_ser;
 
 pub struct Serializer<T: Write> {
     writer: T,
+    int_buf: itoa::Buffer,
+}
+
+impl<T: Write> Serializer<T> {
+    fn new(writer: T) -> Self {
+        Serializer {
+            writer,
+            int_buf: itoa::Buffer::new(),
+        }
+    }
 }
 
 impl<W: Write> Serializer<W> {
@@ -50,14 +60,20 @@ assert_eq!(&buf, b"4:abcd");
 # }
 ```*/
 pub fn to_writer<T: Serialize, W: Write>(value: &T, writer: W) -> Result<()> {
-    let mut serializer = Serializer { writer };
+    let mut serializer = Serializer {
+        writer,
+        int_buf: itoa::Buffer::new(),
+    };
     value.serialize(&mut serializer)?;
     Ok(())
 }
 /// Convenient function to get encoded value as bytes
 pub fn to_vec<T: Serialize>(value: &T) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
-    let mut serializer = Serializer { writer: &mut buf };
+    let mut serializer = Serializer {
+        writer: &mut buf,
+        int_buf: itoa::Buffer::new(),
+    };
     value.serialize(&mut serializer)?;
     Ok(buf)
 }
@@ -104,7 +120,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     fn serialize_i64(self, v: i64) -> Result<Self::Ok> {
         self.write_byte(b'i')?;
-        let _ = itoa::write(&mut self.writer, v)?;
+        let str = self.int_buf.format(v);
+        self.writer.write_all(str.as_bytes())?;
         self.write_byte(b'e')?;
         Ok(())
     }
@@ -123,7 +140,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok> {
         self.write_byte(b'i')?;
-        let _ = itoa::write(&mut self.writer, v)?;
+        let str = self.int_buf.format(v);
+        self.writer.write_all(str.as_bytes())?;
         self.write_byte(b'e')?;
         Ok(())
     }
@@ -139,7 +157,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     fn serialize_char(self, v: char) -> Result<Self::Ok> {
         let mut buf = [0u8; 4];
         let str = v.encode_utf8(&mut buf);
-        self.serialize_bytes(&str.as_bytes())
+        self.serialize_bytes(str.as_bytes())
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
@@ -148,7 +166,8 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
 
     /// Serializes bytes as `Byte String`
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
-        itoa::write(&mut self.writer, v.len())?;
+        let str = self.int_buf.format(v.len());
+        self.writer.write_all(str.as_bytes())?;
         self.writer.write_all(&[b':'])?;
         self.writer.write_all(v)?;
         Ok(())
@@ -158,9 +177,9 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         Err(Error::NoneNotSupported)
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(self)
     }
@@ -183,14 +202,14 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         variant.serialize(&mut *self)
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut *self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -198,7 +217,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         value: &T,
     ) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.write_byte(b'd')?;
         variant.serialize(&mut *self)?;
@@ -267,9 +286,9 @@ impl<'s, W: Write> ser::SerializeSeq for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -283,9 +302,9 @@ impl<'s, W: Write> ser::SerializeTuple for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -299,9 +318,9 @@ impl<'s, W: Write> ser::SerializeTupleStruct for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -315,9 +334,9 @@ impl<'s, W: Write> ser::SerializeTupleVariant for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -375,9 +394,9 @@ impl<'s, W: Write> ser::SerializeStructVariant for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         key.serialize(&mut **self)?;
         value.serialize(&mut **self)?;
@@ -436,23 +455,23 @@ mod dict_serializer {
 
         type Error = Error;
 
-        fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
+        fn serialize_key<T>(&mut self, key: &T) -> Result<()>
         where
-            T: Serialize,
+            T: Serialize + ?Sized,
         {
             let mut v = Vec::new();
-            let mut temp_ser = Serializer { writer: &mut v };
+            let mut temp_ser = Serializer::new(&mut v);
             key.serialize(&mut only_string_ser::OnlyStringSerializer { ser: &mut temp_ser })?;
             self.keys.push(v);
             Ok(())
         }
 
-        fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
+        fn serialize_value<T>(&mut self, value: &T) -> Result<()>
         where
-            T: Serialize,
+            T: Serialize + ?Sized,
         {
             let mut v = Vec::new();
-            let mut temp_ser = Serializer { writer: &mut v };
+            let mut temp_ser = Serializer::new(&mut v);
             value.serialize(&mut temp_ser)?;
             self.values.push(v);
             Ok(())
@@ -467,19 +486,19 @@ mod dict_serializer {
 
         type Error = super::Error;
 
-        fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+        fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
         where
-            T: Serialize,
+            T: Serialize + ?Sized,
         {
             let key = {
                 let mut buf = Vec::new();
-                let mut temp_ser = Serializer { writer: &mut buf };
+                let mut temp_ser = Serializer::new(&mut buf);
                 key.serialize(&mut temp_ser)?;
                 buf
             };
             let value = {
                 let mut buf = Vec::new();
-                let mut temp_ser = Serializer { writer: &mut buf };
+                let mut temp_ser = Serializer::new(&mut buf);
                 value.serialize(&mut temp_ser)?;
                 buf
             };
@@ -614,7 +633,7 @@ mod tests {
         #[derive(Debug, Serialize)]
         enum E {
             T(u8, u8),
-        };
+        }
         assert_eq!(&to_string(&E::T(1, 2))?, "li1ei2ee");
 
         Ok(())
@@ -690,7 +709,7 @@ mod tests {
                 i32,
                 std::hash::BuildHasherDefault<hashers::null::NullHasher>,
             >,
-        };
+        }
 
         let mut map = HashMap::with_hasher(std::hash::BuildHasherDefault::<
             hashers::null::NullHasher,

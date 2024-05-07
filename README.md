@@ -5,10 +5,12 @@
 # Crate for encoding/decoding bencode
 
 What is bencode? It's the encoding mostly used in `.torrent` files and BitTorrent protocol.
-For more info see [BitTorrentSpecification#Bencoding](https://wiki.theory.org/index.php/BitTorrentSpecification#Bencoding).
+For more info see [bep_0003](https://www.bittorrent.org/beps/bep_0003.html).
 
 # Quick example
+
 See `examples` directory
+
 ```rust
 #[derive(Debug, Serialize, Deserialize)]
 struct MetaInfo {
