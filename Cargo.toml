@@ -3,7 +3,7 @@ name = "serde_bencoded"
 version = "0.3.1"
 authors = ["Danil Kondratiev <knightpp@protonmail.com>"]
 license = "MIT OR Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 description = "Yet another encoding/decoding library for bencode"
 readme = "README.md"
@@ -19,7 +19,7 @@ sort_dictionary = []
 
 [dependencies]
 serde = "1.0"
-itoa = "0.4"
+itoa = "1.0"
 # for Deserializer
 btoi = "0.4"
 
@@ -29,7 +29,7 @@ serde = { version = "1.0", features = ["derive"] }
 hashers = "1.0"
 atty = "0.2" # for the example
 bytesize = "1.0" # for the example
-criterion = "0.3"
+criterion = "0.5"
 
 [[bench]]
 name = "bench"
