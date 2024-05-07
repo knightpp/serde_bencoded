@@ -86,9 +86,9 @@ impl<'s, W: Write> ser::Serializer for &'s mut OnlyStringSerializer<'s, W> {
         Err(Error::DictionaryKeyMustBeString)
     }
 
-    fn serialize_some<T: ?Sized>(self, _: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, _: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -110,18 +110,14 @@ impl<'s, W: Write> ser::Serializer for &'s mut OnlyStringSerializer<'s, W> {
         Err(Error::DictionaryKeyMustBeString)
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(
-        self,
-        _: &'static str,
-        _: &T,
-    ) -> Result<Self::Ok, Self::Error>
+    fn serialize_newtype_struct<T>(self, _: &'static str, _: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _: &'static str,
         _: u32,
@@ -129,7 +125,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut OnlyStringSerializer<'s, W> {
         _: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -188,16 +184,16 @@ impl<'s, W: Write> ser::SerializeMap for &'s mut OnlyStringSerializer<'s, W> {
 
     type Error = Error;
 
-    fn serialize_key<T: ?Sized>(&mut self, _: &T) -> Result<(), Self::Error>
+    fn serialize_key<T>(&mut self, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
 
-    fn serialize_value<T: ?Sized>(&mut self, _: &T) -> Result<(), Self::Error>
+    fn serialize_value<T>(&mut self, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -211,9 +207,9 @@ impl<'s, W: Write> ser::SerializeSeq for &'s mut OnlyStringSerializer<'s, W> {
 
     type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, _: &T) -> Result<(), Self::Error>
+    fn serialize_element<T>(&mut self, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -228,9 +224,9 @@ impl<'s, W: Write> ser::SerializeStruct for &'s mut OnlyStringSerializer<'s, W> 
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, _: &'static str, _: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, _: &'static str, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -244,9 +240,9 @@ impl<'s, W: Write> ser::SerializeStructVariant for &'s mut OnlyStringSerializer<
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, _: &'static str, _: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, _: &'static str, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -260,9 +256,9 @@ impl<'s, W: Write> ser::SerializeTuple for &'s mut OnlyStringSerializer<'s, W> {
 
     type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, _: &T) -> Result<(), Self::Error>
+    fn serialize_element<T>(&mut self, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -276,9 +272,9 @@ impl<'s, W: Write> ser::SerializeTupleStruct for &'s mut OnlyStringSerializer<'s
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, _: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }
@@ -292,9 +288,9 @@ impl<'s, W: Write> ser::SerializeTupleVariant for &'s mut OnlyStringSerializer<'
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, _: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, _: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         Err(Error::DictionaryKeyMustBeString)
     }

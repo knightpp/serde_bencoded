@@ -158,9 +158,9 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         Err(Error::NoneNotSupported)
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(self)
     }
@@ -183,14 +183,14 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         variant.serialize(&mut *self)
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
+    fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut *self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -198,7 +198,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
         value: &T,
     ) -> Result<Self::Ok>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         self.write_byte(b'd')?;
         variant.serialize(&mut *self)?;
@@ -267,9 +267,9 @@ impl<'s, W: Write> ser::SerializeSeq for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -283,9 +283,9 @@ impl<'s, W: Write> ser::SerializeTuple for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -299,9 +299,9 @@ impl<'s, W: Write> ser::SerializeTupleStruct for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -315,9 +315,9 @@ impl<'s, W: Write> ser::SerializeTupleVariant for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         value.serialize(&mut **self)
     }
@@ -375,9 +375,9 @@ impl<'s, W: Write> ser::SerializeStructVariant for &'s mut Serializer<W> {
 
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
-        T: Serialize,
+        T: Serialize + ?Sized,
     {
         key.serialize(&mut **self)?;
         value.serialize(&mut **self)?;
@@ -436,9 +436,9 @@ mod dict_serializer {
 
         type Error = Error;
 
-        fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<()>
+        fn serialize_key<T>(&mut self, key: &T) -> Result<()>
         where
-            T: Serialize,
+            T: Serialize + ?Sized,
         {
             let mut v = Vec::new();
             let mut temp_ser = Serializer { writer: &mut v };
@@ -447,9 +447,9 @@ mod dict_serializer {
             Ok(())
         }
 
-        fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<()>
+        fn serialize_value<T>(&mut self, value: &T) -> Result<()>
         where
-            T: Serialize,
+            T: Serialize + ?Sized,
         {
             let mut v = Vec::new();
             let mut temp_ser = Serializer { writer: &mut v };
@@ -467,9 +467,9 @@ mod dict_serializer {
 
         type Error = super::Error;
 
-        fn serialize_field<T: ?Sized>(&mut self, key: &'static str, value: &T) -> Result<()>
+        fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
         where
-            T: Serialize,
+            T: Serialize + ?Sized,
         {
             let key = {
                 let mut buf = Vec::new();
@@ -614,7 +614,7 @@ mod tests {
         #[derive(Debug, Serialize)]
         enum E {
             T(u8, u8),
-        };
+        }
         assert_eq!(&to_string(&E::T(1, 2))?, "li1ei2ee");
 
         Ok(())
@@ -690,7 +690,7 @@ mod tests {
                 i32,
                 std::hash::BuildHasherDefault<hashers::null::NullHasher>,
             >,
-        };
+        }
 
         let mut map = HashMap::with_hasher(std::hash::BuildHasherDefault::<
             hashers::null::NullHasher,

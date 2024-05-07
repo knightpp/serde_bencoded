@@ -168,7 +168,7 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
     }
     fn advance(&mut self) -> Result<u8> {
         let ret = self.peek_next();
-        if self.input.len() == 0 {
+        if self.input.is_empty() {
             return Err(Error::UnexpectedEof);
         }
         self.input = &self.input[1..];
@@ -183,7 +183,7 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
     }
 
     fn advance_by(&mut self, len: usize) -> Result<&'de [u8]> {
-        if len > self.input.len(){
+        if len > self.input.len() {
             return Err(Error::UnexpectedEof);
         }
         let ret = &self.input[0..len];
@@ -196,7 +196,7 @@ impl<'de, T: Behaviour> Deserializer<'de, T> {
     }
     fn advance_to(&mut self, byte: u8) -> Result<&'de [u8]> {
         let ret = slice_while(self.input, byte)?;
-        if ret.len() + 1 > self.input.len(){
+        if ret.len() + 1 > self.input.len() {
             return Err(Error::UnexpectedEof);
         }
         self.input = &self.input[(ret.len() + 1)..];
@@ -634,7 +634,7 @@ mod tests {
         enum E {
             A,
             B,
-        };
+        }
         assert_eq!(from_str::<E>("1:A")?, E::A);
         assert_eq!(from_str::<E>("1:B")?, E::B);
         Ok(())
@@ -687,7 +687,7 @@ mod tests {
         impl<'de> Visitor<'de> for TestAutoVisitor {
             type Value = TestAuto;
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(&self, _formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 todo!()
             }
 
@@ -723,7 +723,7 @@ mod tests {
             {
                 deserializer.deserialize_any(TestAutoVisitor)
             }
-        };
+        }
         let input = b"d6:string4:12345:bytes4:\x01\x02\x03\xFFe";
         let de = from_bytes_auto::<TestAuto>(input)?;
         assert_eq!(
