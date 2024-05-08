@@ -1,6 +1,6 @@
 [![crates.io](https://img.shields.io/crates/v/serde_bencoded.svg)](https://crates.io/crates/serde_bencoded)
 [![Docs](https://docs.rs/serde_bencoded/badge.svg)](https://docs.rs/serde_bencoded/)
-[![dependency status](https://deps.rs/crate/serde_bencoded/0.2.0/status.svg)](https://deps.rs/crate/serde_bencoded/0.2.0)
+[![dependency status](https://deps.rs/crate/serde_bencoded/latest/status.svg)](https://deps.rs/crate/serde_bencoded/)
 
 # Crate for encoding/decoding bencode
 
