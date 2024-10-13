@@ -168,7 +168,7 @@ impl<'s, W: Write> ser::Serializer for &'s mut Serializer<W> {
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok> {
         let str = self.int_buf.format(v.len());
         self.writer.write_all(str.as_bytes())?;
-        self.writer.write_all(&[b':'])?;
+        self.writer.write_all(b":")?;
         self.writer.write_all(v)?;
         Ok(())
     }
